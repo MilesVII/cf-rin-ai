@@ -10,3 +10,6 @@ id = "d4bea54d86e94d9ab69063eba1380dc3"
 
 [ai]
 binding = "AI"
+
+[observability.logs]
+enabled = true
