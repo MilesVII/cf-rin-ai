@@ -1,4 +1,5 @@
 // import axios from "axios";
+import { aiFactory, AIUnit } from "./ai";
 import { type Storage } from "./storage";
 import { tg, pickRandom, sleep, escapeMarkdown } from "./utils";
 import seedrandom from "seedrandom";
@@ -21,7 +22,7 @@ export type RinMessage = {
 
 type SayFunction = (msg: string, reply?: string | boolean, mkdn?: boolean) => Promise<any>;
 
-export async function processRinMessage(message: RinMessage, tgToken: string, storage: Storage) {
+export async function processRinMessage(message: RinMessage, tgToken: string, storage: Storage, ai: AIUnit) {
 	if (message.personal) {
 		await tg(
 			"sendMessage",
@@ -42,14 +43,14 @@ export async function processRinMessage(message: RinMessage, tgToken: string, st
 
 	const sayWrapped: SayFunction = (msg, reply, mkdn) => say(tgCommons, tgToken, msg, reply, mkdn);
 
-	await rinModel(message, sayWrapped, storage);
+	await rinModel(message, sayWrapped, storage, ai);
 }
 
 function roll(threshold: number) {
 	return Math.random() < threshold;
 }
 
-async function rinModel(message: RinMessage, say: SayFunction, storage: Storage){
+async function rinModel(message: RinMessage, say: SayFunction, storage: Storage, ai: AIUnit){
 	const prefs = await storage.get("config");
 	const state = await storage.get("state");
 
@@ -153,7 +154,11 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage)
 				break;
 			}
 			default: {
-				await say(pickRandom(prefs.wats));
+				const response = await ai([{
+					role: "user",
+					content: messageText
+				}], prefs.aiSystemPrompt);
+				await say(response);
 				break;
 			}
 		}

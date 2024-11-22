@@ -4,6 +4,8 @@ export type AIChatPrompt = {
 	content: string
 }
 
+export type AIUnit = ReturnType<typeof aiFactory>;
+
 export function aiFactory(ai: Ai){
 	return async (chat: AIChatPrompt[], systemPrompt: string) => {
 		const messages = [

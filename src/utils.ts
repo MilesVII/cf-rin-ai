@@ -40,7 +40,6 @@ export function chunk<T>(a: T[], chunksize: number): T[][] {
 
 export function tg(command: string, payload: any, token: string) {
 	const url = `https://api.telegram.org/bot${token}/${command}`;
-	console.log(JSON.stringify(payload))
 	return fetch(url, {
 		method: "POST",
 		headers: {

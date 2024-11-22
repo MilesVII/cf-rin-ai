@@ -1,3 +1,4 @@
+import { aiFactory } from "./ai";
 import { processRinMessage } from "./rin-model";
 import { Storage, StorageSchema } from "./storage";
 import { parseTgMessage } from "./tg";
@@ -36,14 +37,15 @@ export default {
 		if (newWebhook) {
 			return registerTgWebhook(newWebhook, env.TG_TOKEN);
 		}
-
-		const reader = request.body?.getReader();
-		const body = (await reader?.read())?.value;
-		const messageRaw = new TextDecoder().decode(body);
+		
+		const messageRaw = request.headers.get("Content-Type") === "application/json"
+			? JSON.stringify(await request.json())
+			: await request.text();
 
 		const localMode = request.headers.get("x-local-mode") === "true";
-
 		const storageInstance = storage(env.RIN_STATE);
+
+		const ai = aiFactory(env.AI);
 
 		if (localMode){
 			await processRinMessage({
@@ -54,11 +56,11 @@ export default {
 					text: messageRaw
 				},
 				raw: null
-			}, env.TG_TOKEN, storageInstance);
+			}, env.TG_TOKEN, storageInstance, ai);
 		} else {
 			const parsed = parseTgMessage(messageRaw, env.TG_ME);
 			if (parsed) 
-				ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance));
+				ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, ai));
 		}
 
 		return new Response();

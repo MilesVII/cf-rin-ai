@@ -37,7 +37,8 @@ export type StorageSchema = {
 		masters: string[],
 		me: string,
 		potd: POTDGame,
-		protectedCommandFailResponse: string[]
+		protectedCommandFailResponse: string[],
+		aiSystemPrompt: string
 	},
 	state: {
 		drafted: boolean
