@@ -39,7 +39,15 @@ export function chunk<T>(a: T[], chunksize: number): T[][] {
 }
 
 export function tg(command: string, payload: any, token: string) {
-	return fetch(`https://api.telegram.org/bot${token}/${command}`, {method: "POST", body: payload});
+	const url = `https://api.telegram.org/bot${token}/${command}`;
+	console.log(JSON.stringify(payload))
+	return fetch(url, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json"
+		},
+		body: JSON.stringify(payload)
+	});
 }
 
 export function tgReport(message: string, token: string, me: string){
