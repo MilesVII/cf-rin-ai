@@ -99,8 +99,7 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage)
 				const date = new Date().toLocaleDateString();
 				const srnd = seedrandom(`${message.origin.sender}-${date}`);
 
-				const [fortunesRaw] = await storage.get("fortunes");
-				const fortunes = JSON.parse(fortunesRaw);
+				const fortunes = await storage.get("fortunes");
 				await say(pickRandom(fortunes, srnd()));
 				if (x2)
 					await say(pickRandom(fortunes, srnd()));
