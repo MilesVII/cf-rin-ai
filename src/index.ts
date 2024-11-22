@@ -1,18 +1,70 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.toml`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+import { processRinMessage } from "./rin-model";
+import { Storage, StorageSchema } from "./storage";
+import { parseTgMessage } from "./tg";
+import { safeParse, tg } from "./utils";
+
+interface Env {
+	RIN_STATE: KVNamespace;
+	TG_ME: string;
+	TG_TOKEN: string;
+	AI: Ai;
+}
+
+async function registerTgWebhook(url: string, tgToken: string) {
+	console.log(`setting webhook to ${url}`);
+
+	return await tg("setWebhook", {
+		url,
+		allowed_updates: "message"
+	}, tgToken);
+}
+
+function storage(kv: KVNamespace): Storage {
+	return {
+		get: async <T extends keyof StorageSchema>(key: T) => {
+			const rawValue = await kv.get(key) ?? "";
+			return safeParse(rawValue) as Promise<StorageSchema[T]>
+		},
+		set: <T extends keyof StorageSchema>(key: T, value: StorageSchema[T]) =>
+			kv.put(key, JSON.stringify(value))
+	}
+};
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
-		return new Response('Hello World!');
+		const newWebhook = request.headers.get("x-set-tg-webhook");
+		if (newWebhook) {
+			return registerTgWebhook(newWebhook, env.TG_TOKEN);
+		}
+
+		const reader = request.body?.getReader();
+		const body = (await reader?.read())?.value;
+		const messageRaw = new TextDecoder().decode(body);
+
+		const localMode = request.headers.get("x-local-mode") === "true";
+
+		const storageInstance = storage(env.RIN_STATE);
+
+		if (localMode){
+			ctx.waitUntil(
+				processRinMessage({
+					personal: false,
+					origin: {
+						sender: env.TG_ME ?? "",
+						chat: env.TG_ME ?? "",
+						text: messageRaw
+					},
+					raw: null
+				}, env.TG_TOKEN, storageInstance)
+			);
+		} else {
+			const parsed = parseTgMessage(messageRaw, env.TG_ME);
+			if (parsed) 
+				ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance));
+		}
+
+		env.AI.run
+		
+		return new Response();
 	},
 } satisfies ExportedHandler<Env>;
