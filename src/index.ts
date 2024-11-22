@@ -46,25 +46,21 @@ export default {
 		const storageInstance = storage(env.RIN_STATE);
 
 		if (localMode){
-			ctx.waitUntil(
-				processRinMessage({
-					personal: false,
-					origin: {
-						sender: env.TG_ME ?? "",
-						chat: env.TG_ME ?? "",
-						text: messageRaw
-					},
-					raw: null
-				}, env.TG_TOKEN, storageInstance)
-			);
+			await processRinMessage({
+				personal: false,
+				origin: {
+					sender: env.TG_ME ?? "",
+					chat: env.TG_ME ?? "",
+					text: messageRaw
+				},
+				raw: null
+			}, env.TG_TOKEN, storageInstance);
 		} else {
 			const parsed = parseTgMessage(messageRaw, env.TG_ME);
 			if (parsed) 
 				ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance));
 		}
 
-		env.AI.run
-		
 		return new Response();
 	},
 } satisfies ExportedHandler<Env>;
