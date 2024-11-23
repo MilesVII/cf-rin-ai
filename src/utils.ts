@@ -81,3 +81,8 @@ export function escapeMarkdown(raw: string){
 export function pickRandom<T>(array: T[], random = Math.random()): T {
 	return array[Math.floor(array.length * random)]
 }
+
+export function popRandom<T>(array: T[], random = Math.random()): T {
+	const index = Math.floor(array.length * random);
+	return array.splice(index, 1)[0];
+}

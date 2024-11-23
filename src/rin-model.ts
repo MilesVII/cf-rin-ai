@@ -1,7 +1,7 @@
 // import axios from "axios";
 import { aiFactory, AIUnit } from "./ai";
 import { type Storage } from "./storage";
-import { tg, pickRandom, sleep, escapeMarkdown } from "./utils";
+import { tg, pickRandom, sleep, escapeMarkdown, popRandom } from "./utils";
 import seedrandom from "seedrandom";
 
 export type RinMessage = {
@@ -20,7 +20,7 @@ export type RinMessage = {
 	raw: any
 };
 
-type SayFunction = (msg: string, reply?: string | boolean, mkdn?: boolean) => Promise<any>;
+type SayFunction = (msg: string, reply?: string | boolean, mkdn?: boolean) => Promise<Response>;
 
 export async function processRinMessage(message: RinMessage, tgToken: string, storage: Storage, ai: AIUnit) {
 	if (message.personal) {
@@ -104,6 +104,41 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 				await say(pickRandom(fortunes, srnd()));
 				if (x2)
 					await say(pickRandom(fortunes, srnd()));
+				break;
+			}
+			case ("tarot"): {
+				const date = new Date().toLocaleDateString();
+				const srnd = seedrandom(`${message.origin.sender}-${date}`);
+
+				const deck = await storage.get("tarot");
+				const aiPrefs = await storage.get("ai");
+				
+				const cards = [
+					popRandom(deck, srnd()),
+					popRandom(deck, srnd()),
+					popRandom(deck, srnd())
+				];
+				
+				const pulledCardsNames = cards
+					.map(card => card.ru.name)
+					.join(", ");
+				const aiResponse = ai([{
+					role: "user",
+					content: aiPrefs.tarotPromptTemplate.replace("#", pulledCardsNames)
+				}], aiPrefs.tarotPrompt);
+
+				for (const card of cards) {
+					await sleep(1200);
+					await say(`:photo:${card.card}`);
+				}
+
+				const comment = cards
+					.map((card, index) => `${index + 1}\\. *${card.name}* \\| *${card.ru.name}*\n_${escapeMarkdown(card.description)}_`)
+					.join("\n\n");
+
+				await say(comment, false, true);
+				await say(await aiResponse);
+
 				break;
 			}
 			case ("potd"): {
