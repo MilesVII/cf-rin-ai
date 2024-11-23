@@ -189,10 +189,11 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 				break;
 			}
 			default: {
+				const aiPrefs = await storage.get("ai");
 				const response = await ai([{
 					role: "user",
 					content: messageText
-				}], prefs.aiSystemPrompt);
+				}], aiPrefs.systemPrompt);
 				await say(response);
 				break;
 			}
