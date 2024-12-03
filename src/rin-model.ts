@@ -239,7 +239,20 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 				break;
 			}
 			case ("draw"): {
-				const response = await drawAi(msgOriginal);
+				const commands = prefs.appealedCommands.find(({command}) => command === "draw")?.triggers
+				if (!commands) break;
+
+				let prompt: string | null = null;
+				for (let cmd of commands) {
+					const pt = messageText.split(cmd)[1];
+					if (pt) {
+						prompt = pt;
+						break;
+					}
+				}
+				if (!prompt) break;
+
+				const response = await drawAi(prompt);
 				await say({
 					mode: "picture-bytes",
 					data: response,
@@ -310,10 +323,11 @@ function say(options: any, rinToken: string, input: SayInput){
 			}, rinToken);
 		}
 		case ("picture-bytes"): {
-			const blob = new Blob([input.data], { type: "image/jpeg" });
+			const blob = new Blob([input.data], { type: "image/png" });
 
 			const formData = new FormData();
-			formData.append("image", blob, "image.jpg");
+			formData.append("chat_id", commons.chat_id);
+			formData.append("photo", blob, "image.png");
 
 			return tgFD("sendPhoto", formData, rinToken);
 		}

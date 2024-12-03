@@ -27,12 +27,20 @@ export function aiFactory(ai: Ai){
 export function aiDrawFactory(ai: Ai){
 	return async (prompt: string) => {
 		//@ts-ignore
-		const response = await ai.run('@cf/black-forest-labs/flux-1-schnell', {
+		const response = await ai.run('@cf/stabilityai/stable-diffusion-xl-base-1.0', {
 			prompt,
 		});
 		
-		//@ts-ignore
-		const binaryString = [...atob(response.image)].map(c => c.codePointAt(0) ?? 0);
-		return Uint8Array.from(binaryString);
+		const reader = response.getReader();
+		const result: number[] = [];
+
+		while (true) {
+			const { value, done } = await reader.read();
+			if (done) break;
+			
+			result.push(...value);
+		}
+
+		return Uint8Array.from(result);
 	}
 }
