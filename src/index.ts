@@ -1,4 +1,4 @@
-import { aiFactory } from "./ai";
+import { aiDrawFactory, aiFactory } from "./ai";
 import { processRinMessage } from "./rin-model";
 import { Storage, StorageSchema } from "./storage";
 import { parseTgMessage } from "./tg";
@@ -46,6 +46,7 @@ export default {
 		const storageInstance = storage(env.RIN_STATE);
 
 		const ai = aiFactory(env.AI);
+		const drawAi = aiDrawFactory(env.AI);
 
 		if (localMode){
 			await processRinMessage({
@@ -56,11 +57,11 @@ export default {
 					text: messageRaw
 				},
 				raw: null
-			}, env.TG_TOKEN, storageInstance, ai);
+			}, env.TG_TOKEN, storageInstance, ai, drawAi);
 		} else {
 			const parsed = parseTgMessage(messageRaw, env.TG_ME);
 			if (parsed) 
-				ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, ai));
+				ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, ai, drawAi));
 		}
 
 		return new Response();

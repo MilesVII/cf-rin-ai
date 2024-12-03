@@ -1,5 +1,5 @@
 // import axios from "axios";
-import { aiFactory, AIUnit } from "./ai";
+import { AIDrawUnit, aiFactory, AIUnit } from "./ai";
 import { type Storage } from "./storage";
 import { tg, pickRandom, sleep, escapeMarkdown, popRandom, tgFD } from "./utils";
 import seedrandom from "seedrandom";
@@ -50,7 +50,7 @@ type SayInput = SayInputPayload & {
 }
 type SayFunction = (msg: SayInput, mkdn?: boolean) => Promise<Response>;
 
-export async function processRinMessage(message: RinMessage, tgToken: string, storage: Storage, ai: AIUnit) {
+export async function processRinMessage(message: RinMessage, tgToken: string, storage: Storage, ai: AIUnit, drawAi: AIDrawUnit) {
 	if (message.personal) {
 		await tg(
 			"sendMessage",
@@ -71,14 +71,14 @@ export async function processRinMessage(message: RinMessage, tgToken: string, st
 
 	const sayWrapped: SayFunction = (input) => say(tgCommons, tgToken, input);
 
-	await rinModel(message, sayWrapped, storage, ai);
+	await rinModel(message, sayWrapped, storage, ai, drawAi);
 }
 
 function roll(threshold: number) {
 	return Math.random() < threshold;
 }
 
-async function rinModel(message: RinMessage, say: SayFunction, storage: Storage, ai: AIUnit){
+async function rinModel(message: RinMessage, say: SayFunction, storage: Storage, ai: AIUnit, drawAi: AIDrawUnit){
 	const prefs = await storage.get("config");
 	const state = await storage.get("state");
 
@@ -238,15 +238,26 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 				});
 				break;
 			}
+			case ("draw"): {
+				const response = await drawAi(msgOriginal);
+				await say({
+					mode: "picture-bytes",
+					data: response,
+					reply: message.reply?.to
+				});
+				break;
+			}
 			default: {
+				if (!msgOriginal) break;
+
 				const aiPrefs = await storage.get("ai");
 				const response = await ai([{
 					role: "user",
-					content: messageText
+					content: msgOriginal
 				}], aiPrefs.systemPrompt);
 				await say({
 					mode: "text",
-					text: msgOriginal,
+					text: response,
 					reply: message.reply?.to
 				});
 				break;
@@ -256,8 +267,7 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 		if (state.drafted && masterSpeaking) {
 			await say({
 				mode: "text",
-				text: msgOriginal,
-				reply: message.reply?.to
+				text: msgOriginal
 			});
 		}
 		const command = getCommand(messageText, prefs.autoResponse);
