@@ -1,7 +1,7 @@
 // import axios from "axios";
 import { aiFactory, AIUnit } from "./ai";
 import { type Storage } from "./storage";
-import { tg, pickRandom, sleep, escapeMarkdown, popRandom } from "./utils";
+import { tg, pickRandom, sleep, escapeMarkdown, popRandom, tgFD } from "./utils";
 import seedrandom from "seedrandom";
 
 export type RinMessage = {
@@ -20,7 +20,35 @@ export type RinMessage = {
 	raw: any
 };
 
-type SayFunction = (msg: string, reply?: string | boolean, mkdn?: boolean) => Promise<Response>;
+export type SayInputPayload = {
+	mode: "text",
+	text: string
+} | {
+	mode: "mkdn",
+	text: string
+} | {
+	mode: "picture-id",
+	id: string
+} | {
+	mode: "picture-bytes",
+	data: Uint8Array
+} | {
+	mode: "album",
+	ids: string[]
+} | {
+	mode: "audio",
+	id: string
+} | {
+	mode: "sticker",
+	id: string
+} | {
+	mode: "animation",
+	id: string
+}
+type SayInput = SayInputPayload & {
+	reply?: string | boolean
+}
+type SayFunction = (msg: SayInput, mkdn?: boolean) => Promise<Response>;
 
 export async function processRinMessage(message: RinMessage, tgToken: string, storage: Storage, ai: AIUnit) {
 	if (message.personal) {
@@ -41,7 +69,7 @@ export async function processRinMessage(message: RinMessage, tgToken: string, st
 	if (message.raw?.message?.message_id)
 		tgCommons.reply_to_message_id = message.raw.message.message_id;
 
-	const sayWrapped: SayFunction = (msg, reply, mkdn) => say(tgCommons, tgToken, msg, reply, mkdn);
+	const sayWrapped: SayFunction = (input) => say(tgCommons, tgToken, input);
 
 	await rinModel(message, sayWrapped, storage, ai);
 }
@@ -101,9 +129,20 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 				const srnd = seedrandom(`${message.origin.sender}-${date}`);
 
 				const fortunes = await storage.get("fortunes");
-				await say(pickRandom(fortunes, srnd()));
+
+				const lines = [
+					pickRandom(fortunes, srnd()),
+					pickRandom(fortunes, srnd())
+				];
+				await say({
+					mode: "text",
+					text: lines[0]
+				});
 				if (x2)
-					await say(pickRandom(fortunes, srnd()));
+					await say({
+						mode: "text",
+						text: lines[1]
+					});
 				break;
 			}
 			case ("tarot"): {
@@ -122,22 +161,33 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 				const pulledCardsNames = cards
 					.map(card => card.ru.name)
 					.join(", ");
+				
 				const aiResponse = ai([{
 					role: "user",
 					content: aiPrefs.tarotPromptTemplate.replace("#", pulledCardsNames)
 				}], aiPrefs.tarotPrompt);
 
-				for (const card of cards) {
-					await sleep(1200);
-					await say(`:photo:${card.card}`);
-				}
+				// for (const card of cards) {
+				// 	await sleep(1200);
+				// 	await say(`:photo:${card.card}`);
+				// }
+				await say({
+					mode: "album",
+					ids: cards.map(card => card.card)
+				});
 
 				const comment = cards
 					.map((card, index) => `${index + 1}\\. *${card.name}* \\| *${card.ru.name}*\n_${escapeMarkdown(card.description)}_`)
 					.join("\n\n");
 
-				await say(comment, false, true);
-				await say(await aiResponse);
+				await say({
+					mode: "mkdn",
+					text: comment
+				});
+				await say({
+					mode: "text",
+					text: await aiResponse
+				});
 
 				break;
 			}
@@ -150,17 +200,14 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 				const name = pickRandom(member, srnd());
 
 				for (let loaderLine of loader) {
-					if (loaderLine.startsWith(":"))
-						await say(
-							loaderLine,
-							false
-						);
+					if (loaderLine.mode === "text")
+						await say({
+							...loaderLine,
+							mode: "mkdn",
+							text: escapeMarkdown(loaderLine.text).replace("\\#", `*${name}*`)
+						})
 					else
-						await say(
-							escapeMarkdown(loaderLine).replace("\\#", `*${name}*`),
-							false,
-							true
-						);
+						await say(loaderLine)
 					await sleep(1000);
 				}
 
@@ -185,7 +232,10 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 				const basicTriggersHelp = escapeMarkdown(prefs.responseTemplate).replace("\\#", `${basicTriggers}`);
 				const help = `${appealsHelp}\n\n${apCommandsHelp}\n\n${basicTriggersHelp}`;
 				
-				await say(help, false, true);
+				await say({
+					mode: "mkdn",
+					text: help,
+				});
 				break;
 			}
 			default: {
@@ -194,13 +244,21 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 					role: "user",
 					content: messageText
 				}], aiPrefs.systemPrompt);
-				await say(response);
+				await say({
+					mode: "text",
+					text: msgOriginal,
+					reply: message.reply?.to
+				});
 				break;
 			}
 		}
 	} else {
 		if (state.drafted && masterSpeaking) {
-			await say(msgOriginal, message.reply?.to);
+			await say({
+				mode: "text",
+				text: msgOriginal,
+				reply: message.reply?.to
+			});
 		}
 		const command = getCommand(messageText, prefs.autoResponse);
 		if (command?.chance && !roll(command.chance))
@@ -211,46 +269,71 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 	}
 }
 
-function say(options: any, rinToken: string, message: string, reply: string | boolean = true, markdown: boolean = false){
+function say(options: any, rinToken: string, input: SayInput){
 	const commons = {
 		...options
 	};
-	if (reply === false){
+	if (input.reply === false){
 		delete commons.reply_to_message_id;
-	} else if (reply !== true) {
-		commons.reply_to_message_id = reply;
+	} else if (input.reply !== true) {
+		commons.reply_to_message_id = input.reply;
 	}
-	if (message.startsWith(":sticker:")){
-		const id = message.split(":sticker:")[1];
-		return tg("sendSticker", {
-			...commons,
-			sticker: id,
-		}, rinToken);
+
+	switch (input.mode) {
+		case ("text"): {
+			return tg("sendMessage", {
+				...commons,
+				text: input.text,
+			}, rinToken);
+		}
+		case ("mkdn"): {
+			return tg("sendMessage", {
+				...commons,
+				parse_mode: "MarkdownV2",
+				text: input.text,
+			}, rinToken);
+		}
+		case ("picture-id"): {
+			return tg("sendPhoto", {
+				...commons,
+				photo: input.id,
+			}, rinToken);
+		}
+		case ("picture-bytes"): {
+			const blob = new Blob([input.data], { type: "image/jpeg" });
+
+			const formData = new FormData();
+			formData.append("image", blob, "image.jpg");
+
+			return tgFD("sendPhoto", formData, rinToken);
+		}
+		case ("album"): {
+			return tg("sendMediaGroup", {
+				...commons,
+				media: input.ids.map(id => ({
+					type: "photo",
+					media: id
+				})),
+			}, rinToken);
+		}
+		case ("sticker"): {
+			return tg("sendSticker", {
+				...commons,
+				sticker: input.id,
+			}, rinToken);
+		}
+		case ("animation"): {
+			return tg("sendAnimation", {
+				...commons,
+				animation: input.id,
+			}, rinToken);
+		}
+		case ("audio"): {
+			const id = input.id;
+			return tg("sendAudio", {
+				...commons,
+				audio: id,
+			}, rinToken);
+		}
 	}
-	if (message.startsWith(":audio:")){
-		const id = message.split(":audio:")[1];
-		return tg("sendAudio", {
-			...commons,
-			audio: id,
-		}, rinToken);
-	}
-	if (message.startsWith(":photo:")){
-		const id = message.split(":photo:")[1];
-		return tg("sendPhoto", {
-			...commons,
-			photo: id,
-		}, rinToken);
-	}
-	if (message.startsWith(":animation:")){
-		const id = message.split(":animation:")[1];
-		return tg("sendAnimation", {
-			...commons,
-			animation: id,
-		}, rinToken);
-	}
-	return tg("sendMessage", {
-		...commons,
-		...(markdown ? {parse_mode: "MarkdownV2"} : {}),
-		text: message,
-	}, rinToken);
 }

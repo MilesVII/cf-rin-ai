@@ -1,3 +1,4 @@
+import type { SayInputPayload } from "./rin-model";
 
 
 type AppealedCommand = {
@@ -10,11 +11,11 @@ type AppealedCommand = {
 
 type AutoResponse = {
 	triggers: string[],
-	responses: string[],
+	responses: SayInputPayload[],
 };
 
 type POTDGame = {
-	loaders: string[][],
+	loaders: SayInputPayload[][],
 	members: string[][]
 };
 
@@ -38,16 +39,16 @@ export type StorageSchema = {
 		responseTemplate: string,
 		autoResponse: AutoResponse[],
 		auxTriggers: Record<string, string[]>,
-		wats: string[],
-		ahs: string[],
+		wats: SayInputPayload[],
+		ahs: SayInputPayload[],
 		blush: {
 			chance: number,
-			says: string[]
+			says: SayInputPayload[]
 		},
 		masters: string[],
 		me: string,
 		potd: POTDGame,
-		protectedCommandFailResponse: string[]
+		protectedCommandFailResponse: SayInputPayload[]
 	},
 	state: {
 		drafted: boolean

@@ -49,6 +49,14 @@ export function tg(command: string, payload: any, token: string) {
 	});
 }
 
+export function tgFD(command: string, payload: FormData, token: string) {
+	const url = `https://api.telegram.org/bot${token}/${command}`;
+	return fetch(url, {
+		method: "POST",
+		body: payload
+	});
+}
+
 export function tgReport(message: string, token: string, me: string){
 	return tg("sendMessage", {
 		chat_id: me,
