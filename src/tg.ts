@@ -1,8 +1,6 @@
 import { type RinMessage } from "./rin-model";
 import { safeParse } from "./utils";
 
-
-
 export function parseTgMessage(rawText: string, me: string): RinMessage | null {
 	const raw = safeParse(rawText);
 	if (raw === null) return null;

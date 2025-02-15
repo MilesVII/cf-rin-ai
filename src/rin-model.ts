@@ -1,5 +1,6 @@
 // import axios from "axios";
 import { AIDrawUnit, aiFactory, AIUnit } from "./ai";
+import { ask } from "./gemini";
 import { type Storage } from "./storage";
 import { tg, pickRandom, sleep, escapeMarkdown, popRandom, tgFD } from "./utils";
 import seedrandom from "seedrandom";
@@ -50,7 +51,7 @@ type SayInput = SayInputPayload & {
 }
 type SayFunction = (msg: SayInput, mkdn?: boolean) => Promise<Response>;
 
-export async function processRinMessage(message: RinMessage, tgToken: string, storage: Storage, ai: AIUnit, drawAi: AIDrawUnit) {
+export async function processRinMessage(message: RinMessage, tgToken: string, storage: Storage, geminiKey: string, drawAi: AIDrawUnit) {
 	if (message.personal) {
 		await tg(
 			"sendMessage",
@@ -71,14 +72,14 @@ export async function processRinMessage(message: RinMessage, tgToken: string, st
 
 	const sayWrapped: SayFunction = (input) => say(tgCommons, tgToken, input);
 
-	await rinModel(message, sayWrapped, storage, ai, drawAi);
+	await rinModel(message, sayWrapped, storage, geminiKey, drawAi);
 }
 
 function roll(threshold: number) {
 	return Math.random() < threshold;
 }
 
-async function rinModel(message: RinMessage, say: SayFunction, storage: Storage, ai: AIUnit, drawAi: AIDrawUnit){
+async function rinModel(message: RinMessage, say: SayFunction, storage: Storage, geminiKey: string, drawAi: AIDrawUnit){
 	const prefs = await storage.get("config");
 	const state = await storage.get("state");
 
@@ -162,10 +163,7 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 					.map(card => card.ru.name)
 					.join(", ");
 				
-				const aiResponse = ai([{
-					role: "user",
-					content: aiPrefs.tarotPromptTemplate.replace("#", pulledCardsNames)
-				}], aiPrefs.tarotPrompt);
+				const aiResponsePromise = ask(geminiKey, aiPrefs.tarotPromptTemplate.replace("#", pulledCardsNames), aiPrefs.tarotPrompt)
 
 				// for (const card of cards) {
 				// 	await sleep(1200);
@@ -184,9 +182,13 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 					mode: "mkdn",
 					text: comment
 				});
+
+				const aiResponse = await aiResponsePromise;
+				const answer = aiResponse.success ? aiResponse.answer : `E${aiResponse.code}: ${aiResponse.message}`
+
 				await say({
 					mode: "text",
-					text: await aiResponse
+					text: answer
 				});
 
 				break;
@@ -264,13 +266,10 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 				if (!msgOriginal) break;
 
 				const aiPrefs = await storage.get("ai");
-				const response = await ai([{
-					role: "user",
-					content: msgOriginal
-				}], aiPrefs.systemPrompt);
+				const response = await ask(geminiKey, msgOriginal, aiPrefs.systemPrompt)
 				await say({
 					mode: "text",
-					text: response,
+					text: response.success ? response.answer : `E${response.code}: ${response.message}`,
 					reply: message.reply?.to
 				});
 				break;

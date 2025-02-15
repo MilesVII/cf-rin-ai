@@ -8,6 +8,7 @@ interface Env {
 	RIN_STATE: KVNamespace;
 	TG_ME: string;
 	TG_TOKEN: string;
+	AI_GEMINI: string;
 	AI: Ai;
 }
 
@@ -57,11 +58,11 @@ export default {
 					text: messageRaw
 				},
 				raw: null
-			}, env.TG_TOKEN, storageInstance, ai, drawAi);
+			}, env.TG_TOKEN, storageInstance, env.AI_GEMINI, drawAi);
 		} else {
 			const parsed = parseTgMessage(messageRaw, env.TG_ME);
 			if (parsed) 
-				ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, ai, drawAi));
+				ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, env.AI_GEMINI, drawAi));
 		}
 
 		return new Response();
