@@ -2,20 +2,22 @@
 import { AIDrawUnit, aiFactory, AIUnit } from "./ai";
 import { ask } from "./gemini";
 import { type Storage } from "./storage";
-import { tg, pickRandom, sleep, escapeMarkdown, popRandom, tgFD } from "./utils";
+import { tg, pickRandom, sleep, escapeMarkdown, popRandom, tgFD, recoverConversationChain } from "./utils";
 import seedrandom from "seedrandom";
 
 export type RinMessage = {
 	personal: boolean,
 	origin: {
+		id: number,
 		sender: string,
 		chat: string,
 		text: string
 	}
-	reply?: {
+	isReply?: {
 		to: string,
 		message: {
-			id: string
+			id: number,
+			text: string
 		}
 	},
 	raw: any
@@ -84,7 +86,7 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 	const state = await storage.get("state");
 
 	const masterSpeaking = prefs.masters.some((m: any) => message.origin.sender == m);
-	const autoAppeal = (message.reply?.to == prefs.me);
+	const autoAppeal = (message.isReply?.to == prefs.me);
 	const appeals: string[] = prefs.appeals;
 	const msgOriginal = message.origin.text;
 	const messageText = message.origin.text.toLowerCase();
@@ -163,7 +165,8 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 					.map(card => card.ru.name)
 					.join(", ");
 				
-				const aiResponsePromise = ask(geminiKey, aiPrefs.tarotPromptTemplate.replace("#", pulledCardsNames), aiPrefs.tarotPrompt)
+				const chain = [[true, aiPrefs.tarotPromptTemplate.replace("#", pulledCardsNames)] as [boolean, string]];
+				const aiResponsePromise = ask(geminiKey, chain, aiPrefs.tarotPrompt);
 
 				// for (const card of cards) {
 				// 	await sleep(1200);
@@ -258,20 +261,67 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 				await say({
 					mode: "picture-bytes",
 					data: response,
-					reply: message.reply?.to
+					reply: message.isReply?.to
 				});
 				break;
+			}
+			case ("hypno"): {
+				const newPrompt = messageText.split("\n").slice(1).join("\n");
+				if (newPrompt.trim().length <= 1) {
+					await say({
+						mode: "text",
+						text: "Prompt too short; Prompt is read after first newline"
+					});
+				} else {
+					const aiPrefs = await storage.get("ai");
+					aiPrefs.systemPrompt = newPrompt;
+					await storage.set("ai", aiPrefs);
+
+					await say({
+						mode: "text",
+						text: "Prompt override complete"
+					});
+				}
 			}
 			default: {
 				if (!msgOriginal) break;
 
 				const aiPrefs = await storage.get("ai");
-				const response = await ask(geminiKey, msgOriginal, aiPrefs.systemPrompt)
-				await say({
+				const conversations = await storage.get("aiConversations") ?? {};
+				if (message.isReply && !conversations[message.isReply.message.id])
+					conversations[message.isReply.message.id] = {
+						previous: null,
+						text: message.isReply.message.text,
+						fromUser: false
+					};
+				if (!conversations[message.origin.id])
+					conversations[message.origin.id] = {
+						previous: message.isReply?.message.id ?? null,
+						text: message.origin.text,
+						fromUser: true
+					};
+
+				const chain = recoverConversationChain(conversations, message.origin.id);
+				const response = await ask(geminiKey, chain, aiPrefs.systemPrompt)
+				const tgResponse = await say({
 					mode: "text",
 					text: response.success ? response.answer : `E${response.code}: ${response.message}`,
-					reply: message.reply?.to
+					reply: message.isReply?.to
 				});
+				if (tgResponse.ok && response.success) {
+					const tgData = await tgResponse.json() as any;
+					if (tgData.ok) {
+
+						const responseMessageId = tgData.result.message_id as number;
+						conversations[responseMessageId] = {
+							previous: message.origin.id,
+							text: response.answer,
+							fromUser: false
+						};
+						
+						await storage.set("aiConversations", conversations);
+					}
+				}
 				break;
 			}
 		}

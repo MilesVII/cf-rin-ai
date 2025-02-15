@@ -1,14 +1,17 @@
 const model = "gemini-2.0-flash";
 const url = (key: string) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
-export async function ask(key: string, message: string, systemPrompt: string) {
+export async function ask(key: string, dialog: [user: boolean, text: string][], systemPrompt: string) {
 	const payload = {
 		systemInstruction: {
-			parts: { "text": systemPrompt }
+			parts: { text: systemPrompt }
 		},
-		contents: {
-			parts: { "text": message }
-		},
+		contents: dialog.map(
+			([fromUser, text]) => ({
+				parts: { text },
+				role: fromUser ? "user" : "model"
+			})
+		),
 		safetySettings:
 			[
 				"HARM_CATEGORY_HARASSMENT",
@@ -18,7 +21,7 @@ export async function ask(key: string, message: string, systemPrompt: string) {
 				"HARM_CATEGORY_CIVIC_INTEGRITY"
 			].map(category => ({
 				category: category,
-				threshold: "BLOCK_NONE"
+				threshold: "OFF"
 			})),
 		// generationConfig: {
 		// 	"stopSequences": [

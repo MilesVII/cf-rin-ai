@@ -1,4 +1,3 @@
-
 export function safe<T>(cb: () => T): (T | null) {
 	try {
 		return cb();
@@ -93,4 +92,26 @@ export function pickRandom<T>(array: T[], random = Math.random()): T {
 export function popRandom<T>(array: T[], random = Math.random()): T {
 	const index = Math.floor(array.length * random);
 	return array.splice(index, 1)[0];
+}
+
+export type AIConversations = Record<number, {
+	previous: number | null,
+	text: string,
+	fromUser: boolean
+}>;
+
+export function recoverConversationChain(conversations: AIConversations, lastId: number) {
+	const messages: [fromUser: boolean, text: string][] = [];
+	let head = lastId;
+	
+	while (conversations[head]) {
+		const msg = conversations[head];
+		messages.push([msg.fromUser, msg.text]);
+
+		if (!msg.previous) break;
+		head = msg.previous;
+	}
+
+	messages.reverse();
+	return messages;
 }

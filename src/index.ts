@@ -46,13 +46,13 @@ export default {
 		const localMode = request.headers.get("x-local-mode") === "true";
 		const storageInstance = storage(env.RIN_STATE);
 
-		const ai = aiFactory(env.AI);
 		const drawAi = aiDrawFactory(env.AI);
 
 		if (localMode){
 			await processRinMessage({
 				personal: false,
 				origin: {
+					id: 0,
 					sender: env.TG_ME ?? "",
 					chat: env.TG_ME ?? "",
 					text: messageRaw

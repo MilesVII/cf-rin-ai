@@ -1,4 +1,5 @@
 import type { SayInputPayload } from "./rin-model";
+import { AIConversations } from "./utils";
 
 
 type AppealedCommand = {
@@ -58,7 +59,8 @@ export type StorageSchema = {
 		tarotPrompt: string,
 		tarotPromptTemplate: string
 	},
-	tarot: TarotCard[]
+	aiConversations?: AIConversations,
+	tarot: TarotCard[],
 }
 
 export type Storage = {
