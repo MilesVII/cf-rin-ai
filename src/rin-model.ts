@@ -282,6 +282,7 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 						text: "Prompt override complete"
 					});
 				}
+				break;
 			}
 			default: {
 				if (!msgOriginal) break;
