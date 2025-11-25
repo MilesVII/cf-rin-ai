@@ -303,6 +303,8 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 					};
 
 				const chain = recoverConversationChain(conversations, message.origin.id);
+				if (chain.some(([, text]) => !text)) break;
+
 				const response = await ask(geminiKey, chain, aiPrefs.systemPrompt)
 				const tgResponse = await say({
 					mode: "text",
