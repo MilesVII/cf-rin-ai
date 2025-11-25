@@ -56,7 +56,7 @@ export function tgFD(command: string, payload: FormData, token: string) {
 	});
 }
 
-export function tgReport(message: string, token: string, me: string){
+export function tgReport(message: string, token: string, me: string | number){
 	return tg("sendMessage", {
 		chat_id: me,
 		text: message

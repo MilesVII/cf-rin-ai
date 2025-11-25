@@ -1,4 +1,5 @@
 import { aiDrawFactory, aiFactory } from "./ai";
+import { emo } from "./emo";
 import { processRinMessage } from "./rin-model";
 import { Storage, StorageSchema } from "./storage";
 import { parseTgMessage } from "./tg";
@@ -61,8 +62,22 @@ export default {
 			}, env.TG_TOKEN, storageInstance, env.AI_GEMINI, drawAi);
 		} else {
 			const parsed = parseTgMessage(messageRaw, env.TG_ME);
-			if (parsed) 
-				ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, env.AI_GEMINI, drawAi));
+			if (parsed) {
+				if (
+					parsed.personal &&
+					parsed.raw.message?.chat?.id && 
+					parsed.raw.message?.sticker?.file_id
+				)
+					ctx.waitUntil(emo(
+						parsed.raw.message.sticker.file_id,
+						parsed.raw.message.sticker.file_size ?? 0,
+						parsed.raw.message.chat.id,
+						env.TG_TOKEN,
+						env.AI_GEMINI
+					));
+				else
+					ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, env.AI_GEMINI, drawAi));
+			}
 		}
 
 		return new Response();
