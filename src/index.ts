@@ -5,14 +5,6 @@ import { Storage, StorageSchema } from "./storage";
 import { parseTgMessage } from "./tg";
 import { safeParse, tg } from "./utils";
 
-interface Env {
-	RIN_STATE: KVNamespace;
-	TG_ME: string;
-	TG_TOKEN: string;
-	AI_GEMINI: string;
-	AI: Ai;
-}
-
 async function registerTgWebhook(url: string, tgToken: string) {
 	console.log(`setting webhook to ${url}`);
 
@@ -59,7 +51,7 @@ export default {
 					text: messageRaw
 				},
 				raw: null
-			}, env.TG_TOKEN, storageInstance, env.AI_GEMINI, drawAi);
+			}, env.TG_TOKEN, storageInstance, env.OR_KEY, drawAi);
 		} else {
 			const parsed = parseTgMessage(messageRaw, env.TG_ME);
 			if (parsed) {
@@ -76,7 +68,7 @@ export default {
 						env.AI_GEMINI
 					));
 				else
-					ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, env.AI_GEMINI, drawAi));
+					ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, env.OR_KEY, drawAi));
 			}
 		}
 
