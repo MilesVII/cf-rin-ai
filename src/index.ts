@@ -59,7 +59,7 @@ export default {
 					text: messageRaw
 				},
 				raw: null
-			}, env.TG_TOKEN, storageInstance, env.AI_GEMINI, drawAi);
+			}, env.TG_TOKEN, storageInstance, env.OR_KEY, drawAi);
 		} else {
 			const parsed = parseTgUpdate(messageRaw, env.TG_ME);
 			if (parsed) {
@@ -80,7 +80,7 @@ export default {
 							env.AI_GEMINI
 						));
 					else
-						ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, env.AI_GEMINI, drawAi));
+						ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, env.OR_KEY, drawAi));
 				}
 
 			}
