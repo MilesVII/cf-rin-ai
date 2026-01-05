@@ -8,4 +8,9 @@ type AskResult = {
 	message: string;
 };
 
-export type Ask = (key: string, dialog: [user: boolean, text: string][], systemPrompt: string) => Promise<AskResult>;
+export type Ask = (
+	key: string,
+	dialog: [user: boolean, text: string][],
+	systemPrompt: string,
+	models: string[]
+) => Promise<AskResult>;

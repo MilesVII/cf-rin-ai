@@ -1,6 +1,6 @@
 import { Ask } from "./types"
 
-export const ask: Ask = async (key: string, dialog: [user: boolean, text: string][], systemPrompt: string) => {
+export const ask: Ask = async (key, dialog, systemPrompt, models) => {
 	const response = await fetch(
 		"https://openrouter.ai/api/v1/chat/completions",
 		{
@@ -10,12 +10,7 @@ export const ask: Ask = async (key: string, dialog: [user: boolean, text: string
 				"Authorization": `Bearer ${key}`
 			},
 			body: JSON.stringify({
-				"models": [
-					"google/gemini-2.0-flash-exp:free",
-					"amazon/nova-2-lite-v1:free",
-					// "qwen/qwen3-235b-a22b:free",
-					// "openai/gpt-oss-20b:free"
-				],
+				"models": models ?? ["google/gemini-2.0-flash-exp:free"],
 				"messages": [
 					{
 						role: "system",

@@ -166,7 +166,7 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 					.join(", ");
 				
 				const chain = [[true, aiPrefs.tarotPromptTemplate.replace("#", pulledCardsNames)] as [boolean, string]];
-				const aiResponsePromise = ask(geminiKey, chain, aiPrefs.tarotPrompt);
+				const aiResponsePromise = ask(geminiKey, chain, aiPrefs.tarotPrompt, aiPrefs.models);
 
 				// for (const card of cards) {
 				// 	await sleep(1200);
@@ -305,7 +305,7 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 				const chain = recoverConversationChain(conversations, message.origin.id);
 				if (chain.some(([, text]) => !text)) break;
 
-				const response = await ask(geminiKey, chain, aiPrefs.systemPrompt)
+				const response = await ask(geminiKey, chain, aiPrefs.systemPrompt, aiPrefs.models)
 				const tgResponse = await say({
 					mode: "text",
 					text: response.success ? response.answer : `E${response.code}: ${response.message}`,

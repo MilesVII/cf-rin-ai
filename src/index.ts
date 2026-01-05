@@ -5,14 +5,6 @@ import { Storage, StorageSchema } from "./storage";
 import { parseTgUpdate, processInlineQuery } from "./tg";
 import { escapeMarkdown, nothrowParse, tg } from "./utils";
 
-interface Env {
-	RIN_STATE: KVNamespace;
-	TG_ME: string;
-	TG_TOKEN: string;
-	AI_GEMINI: string;
-	AI: Ai;
-}
-
 async function registerTgWebhook(url: string, tgToken: string) {
 	console.log(`setting webhook to ${url}`);
 
