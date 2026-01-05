@@ -2,8 +2,8 @@ import { aiDrawFactory, aiFactory } from "./ai";
 import { emo } from "./emo";
 import { processRinMessage } from "./rin-model";
 import { Storage, StorageSchema } from "./storage";
-import { parseTgMessage } from "./tg";
-import { safeParse, tg } from "./utils";
+import { parseTgUpdate, processInlineQuery } from "./tg";
+import { escapeMarkdown, nothrowParse, tg } from "./utils";
 
 interface Env {
 	RIN_STATE: KVNamespace;
@@ -18,7 +18,7 @@ async function registerTgWebhook(url: string, tgToken: string) {
 
 	return await tg("setWebhook", {
 		url,
-		allowed_updates: "message"
+		allowed_updates: ["message", "inline_query"]
 	}, tgToken);
 }
 
@@ -26,7 +26,7 @@ function storage(kv: KVNamespace): Storage {
 	return {
 		get: async <T extends keyof StorageSchema>(key: T) => {
 			const rawValue = await kv.get(key) ?? "";
-			return safeParse(rawValue) as Promise<StorageSchema[T]>
+			return nothrowParse(rawValue) as Promise<StorageSchema[T]>
 		},
 		set: <T extends keyof StorageSchema>(key: T, value: StorageSchema[T]) =>
 			kv.put(key, JSON.stringify(value))
@@ -61,22 +61,28 @@ export default {
 				raw: null
 			}, env.TG_TOKEN, storageInstance, env.AI_GEMINI, drawAi);
 		} else {
-			const parsed = parseTgMessage(messageRaw, env.TG_ME);
+			const parsed = parseTgUpdate(messageRaw, env.TG_ME);
 			if (parsed) {
-				if (
-					parsed.personal &&
-					parsed.raw.message?.chat?.id && 
-					parsed.raw.message?.sticker?.file_id
-				)
-					ctx.waitUntil(emo(
-						parsed.raw.message.sticker.file_id,
-						parsed.raw.message.sticker.file_size ?? 0,
-						parsed.raw.message.chat.id,
-						env.TG_TOKEN,
-						env.AI_GEMINI
-					));
-				else
-					ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, env.AI_GEMINI, drawAi));
+				if (parsed?.iq) {
+					const config = await storageInstance.get("config");
+					ctx.waitUntil(processInlineQuery(parsed.id, env.TG_ME, env.TG_TOKEN, config.inline));
+				} else {
+					if (
+						parsed.personal &&
+						parsed.raw.message?.chat?.id && 
+						parsed.raw.message?.sticker?.file_id
+					)
+						ctx.waitUntil(emo(
+							parsed.raw.message.sticker.file_id,
+							parsed.raw.message.sticker.file_size ?? 0,
+							parsed.raw.message.chat.id,
+							env.TG_TOKEN,
+							env.AI_GEMINI
+						));
+					else
+						ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, env.AI_GEMINI, drawAi));
+				}
+
 			}
 		}
 

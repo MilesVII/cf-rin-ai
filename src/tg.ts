@@ -1,10 +1,17 @@
 import { type RinMessage } from "./rin-model";
-import { safeParse } from "./utils";
+import { StorageSchema } from "./storage";
+import { escapeMarkdown, nothrowParse, pickRandom, tg } from "./utils";
 
-export function parseTgMessage(rawText: string, me: string): RinMessage | null {
-	const raw = safeParse(rawText);
+export function parseTgUpdate(rawText: string, me: string) {
+	const raw = nothrowParse(rawText);
 	if (raw === null) return null;
 
+	if (raw?.message) return parseTgMessage(raw, me);
+	if (raw?.inline_query) return parseTgInlineQuery(raw);
+	return null;
+}
+
+function parseTgMessage(raw: any, me: string): RinMessage | null {
 	return {
 		personal: raw.message?.chat?.type === "private",
 		origin: {
@@ -22,4 +29,32 @@ export function parseTgMessage(rawText: string, me: string): RinMessage | null {
 		}) : undefined,
 		raw: raw
 	};
+}
+
+function parseTgInlineQuery(raw: any) {
+	return { iq: true, ...raw?.inline_query };
+}
+
+export async function processInlineQuery(id: string, me: string, token: string, config: StorageSchema["config"]["inline"]) {
+	const value = pickRandom(config.lines);
+	await tg(
+		"answerInlineQuery",
+		{
+			inline_query_id: id,
+			results: [{
+				type: "article",
+				id: "blop",
+				title: config.caption,
+				thumbnail_url: config.icon,
+				thumbnail_width: 128,
+				thumbnail_height: 128,
+				input_message_content: {
+					message_text: value
+				}
+			}],
+			cache_time: 30,
+			is_personal: true
+		},
+		token
+	);
 }

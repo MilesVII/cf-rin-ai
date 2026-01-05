@@ -6,12 +6,33 @@ export function safe<T>(cb: () => T): (T | null) {
 	}
 }
 
-export function safeParse(str: string) {
+export type NothrowResult<T, E> = {
+	success: true,
+	value: T
+} | {
+	success: false,
+	error: E
+};
+
+export function nothrow<T>(cb: () => T): NothrowResult<T, any> {
 	try {
-		return JSON.parse(str);
-	} catch (e) {
-		return null;
+		return { success: true, value: cb() };
+	} catch (error: any) {
+		return { success: false, error };
 	}
+}
+
+export function nothrowAsync<T>(cb: Promise<T>): Promise<NothrowResult<T, any>> {
+	return new Promise(resolve => {
+		cb
+			.then(value => resolve({ success: true, value }))
+			.catch(error => resolve({ success: false, error }))
+	});
+}
+
+export function nothrowParse(raw: string) {
+	const result = nothrow(() => JSON.parse(raw));
+	return result.success ? result.value : null;
 }
 
 export function last<T>(arr: T[]): T {

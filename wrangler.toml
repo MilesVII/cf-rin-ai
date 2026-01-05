@@ -13,3 +13,7 @@ binding = "AI"
 
 [observability.logs]
 enabled = true
+
+[assets]
+directory = "./assets"
+binding = "ASSETS"

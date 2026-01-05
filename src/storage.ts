@@ -30,6 +30,12 @@ type TarotCard = {
 	}
 };
 
+type InlineConfig = {
+	icon: string,
+	caption: string,
+	lines: string[]
+}
+
 export type StorageSchema = {
 	fortunes: string[],
 	config: {
@@ -49,12 +55,14 @@ export type StorageSchema = {
 		masters: string[],
 		me: string,
 		potd: POTDGame,
-		protectedCommandFailResponse: SayInputPayload[]
+		protectedCommandFailResponse: SayInputPayload[],
+		inline: InlineConfig,
 	},
 	state: {
 		drafted: boolean
 	},
 	ai: {
+		models: string[],
 		systemPrompt: string,
 		tarotPrompt: string,
 		tarotPromptTemplate: string
