@@ -69,7 +69,7 @@ export default {
 							parsed.raw.message.sticker.file_size ?? 0,
 							parsed.raw.message.chat.id,
 							env.TG_TOKEN,
-							env.AI_GEMINI
+							env.OR_KEY
 						));
 					else
 						ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, env.OR_KEY, drawAi));

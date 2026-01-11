@@ -1,6 +1,7 @@
 type AskResult = {
 	success: true,
 	answer: string,
+	messages: any,
 	tokenUsage: number
 } | {
 	success: false;
@@ -8,9 +9,12 @@ type AskResult = {
 	message: string;
 };
 
+
+type ChainLink = [user: boolean, text: string, image?: string];
 export type Ask = (
 	key: string,
-	dialog: [user: boolean, text: string][],
-	systemPrompt: string,
-	models: string[]
+	dialog: ChainLink[],
+	systemPrompt: string | null,
+	models: string[],
+	maxTokens?: number
 ) => Promise<AskResult>;
