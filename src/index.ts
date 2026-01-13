@@ -1,8 +1,10 @@
 import { aiDrawFactory, aiFactory } from "./ai";
+import { createConnector } from "./db";
 import { emo } from "./emo";
 import { processRinMessage } from "./rin-model";
 import { Storage, StorageSchema } from "./storage";
 import { parseTgUpdate, processInlineQuery } from "./tg";
+import { Rinputs } from "./types";
 import { escapeMarkdown, nothrowParse, tg } from "./utils";
 
 async function registerTgWebhook(url: string, tgToken: string) {
@@ -36,46 +38,40 @@ export default {
 			? JSON.stringify(await request.json())
 			: await request.text();
 
-		const localMode = request.headers.get("x-local-mode") === "true";
 		const storageInstance = storage(env.RIN_STATE);
-
 		const drawAi = aiDrawFactory(env.AI);
+		const parsed = parseTgUpdate(messageRaw, env.TG_ME);
 
-		if (localMode){
-			await processRinMessage({
-				personal: false,
-				origin: {
-					id: 0,
-					sender: env.TG_ME ?? "",
-					chat: env.TG_ME ?? "",
-					text: messageRaw
-				},
-				raw: null
-			}, env.TG_TOKEN, storageInstance, env.OR_KEY, drawAi);
-		} else {
-			const parsed = parseTgUpdate(messageRaw, env.TG_ME);
-			if (parsed) {
-				if (parsed?.iq) {
-					const config = await storageInstance.get("config");
-					ctx.waitUntil(processInlineQuery(parsed.id, env.TG_ME, env.TG_TOKEN, config.inline));
-				} else {
-					if (
-						parsed.personal &&
-						parsed.raw.message?.chat?.id && 
-						parsed.raw.message?.sticker?.file_id
-					)
-						ctx.waitUntil(emo(
-							parsed.raw.message.sticker.file_id,
-							parsed.raw.message.sticker.file_size ?? 0,
-							parsed.raw.message.chat.id,
-							env.TG_TOKEN,
-							env.OR_KEY
-						));
-					else
-						ctx.waitUntil(processRinMessage(parsed, env.TG_TOKEN, storageInstance, env.OR_KEY, drawAi));
-				}
+		const rinputs: Rinputs = {
+			aiKey: env.OR_KEY,
+			drawAi,
+			message: parsed,
+			storage: storageInstance,
+			tgToken: env.TG_TOKEN,
+			dbConnector: createConnector(env.rin_d1)
+		};
 
+		if (parsed) {
+			if (parsed?.iq) {
+				const config = await storageInstance.get("config");
+				ctx.waitUntil(processInlineQuery(parsed.id, env.TG_ME, env.TG_TOKEN, config.inline));
+			} else {
+				if (
+					parsed.personal &&
+					parsed.raw.message?.chat?.id && 
+					parsed.raw.message?.sticker?.file_id
+				)
+					ctx.waitUntil(emo(
+						parsed.raw.message.sticker.file_id,
+						parsed.raw.message.sticker.file_size ?? 0,
+						parsed.raw.message.chat.id,
+						env.TG_TOKEN,
+						env.OR_KEY
+					));
+				else
+					ctx.waitUntil(processRinMessage(rinputs));
 			}
+
 		}
 
 		return new Response();

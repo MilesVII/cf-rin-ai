@@ -17,3 +17,8 @@ enabled = true
 [assets]
 directory = "./assets"
 binding = "ASSETS"
+
+[[d1_databases]]
+binding = "rin_d1"
+database_name = "rin-d1"
+database_id = "6368fd37-9624-4fa7-9041-15ce352d3feb"

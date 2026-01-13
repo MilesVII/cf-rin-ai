@@ -17,6 +17,8 @@
     "wrangler": "^4.51.0"
   },
   "dependencies": {
+    "kysely": "^0.28.9",
+    "kysely-d1": "^0.4.0",
     "seedrandom": "^3.0.5",
     "uint8-to-base64": "^0.2.1"
   }

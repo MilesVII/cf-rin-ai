@@ -29,7 +29,8 @@ export async function emo(fileId: string, fileSize: number, chat: number, tgToke
 		orKey,
 		[[true, text, `data:image/webp;base64,${b64}`]],
 		null,
-		["google/gemma-3-27b-it:free"]
+		// ["google/gemma-3-27b-it:free"]
+		["nvidia/nemotron-nano-12b-v2-vl:free"]
 	);
 
 	if (result.success) {

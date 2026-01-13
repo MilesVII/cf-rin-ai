@@ -1,8 +1,6 @@
-// import axios from "axios";
-import { AIDrawUnit } from "./ai";
 import { ask } from "./or";
-import { type Storage } from "./storage";
-import { tg, pickRandom, sleep, escapeMarkdown, popRandom, tgFD, recoverConversationChain } from "./utils";
+import { Rinputs } from "./types";
+import { tg, pickRandom, sleep, escapeMarkdown, popRandom, tgFD, recoverConversationChain, parseDateDMY } from "./utils";
 import seedrandom from "seedrandom";
 
 export type RinMessage = {
@@ -53,7 +51,8 @@ type SayInput = SayInputPayload & {
 }
 type SayFunction = (msg: SayInput, mkdn?: boolean) => Promise<Response>;
 
-export async function processRinMessage(message: RinMessage, tgToken: string, storage: Storage, geminiKey: string, drawAi: AIDrawUnit) {
+export async function processRinMessage(rinputs: Rinputs) {
+	const {message, tgToken, storage, aiKey, drawAi} = rinputs;
 	if (message.personal) {
 		await tg(
 			"sendMessage",
@@ -74,14 +73,14 @@ export async function processRinMessage(message: RinMessage, tgToken: string, st
 
 	const sayWrapped: SayFunction = (input) => say(tgCommons, tgToken, input);
 
-	await rinModel(message, sayWrapped, storage, geminiKey, drawAi);
+	await rinModel(sayWrapped, rinputs);
 }
 
 function roll(threshold: number) {
 	return Math.random() < threshold;
 }
 
-async function rinModel(message: RinMessage, say: SayFunction, storage: Storage, geminiKey: string, drawAi: AIDrawUnit){
+async function rinModel(say: SayFunction, { message, storage, aiKey, drawAi, dbConnector}: Rinputs){
 	const prefs = await storage.get("config");
 	const state = await storage.get("state");
 
@@ -166,7 +165,7 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 					.join(", ");
 				
 				const chain = [[true, aiPrefs.tarotPromptTemplate.replace("#", pulledCardsNames)] as [boolean, string]];
-				const aiResponsePromise = ask(geminiKey, chain, aiPrefs.tarotPrompt, aiPrefs.models);
+				const aiResponsePromise = ask(aiKey, chain, aiPrefs.tarotPrompt, aiPrefs.models);
 
 				// for (const card of cards) {
 				// 	await sleep(1200);
@@ -284,6 +283,83 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 				}
 				break;
 			}
+			case ("remindme"): {
+				const [date, name] = messageText.split("\n").slice(1);
+				if (!date || !name) {
+					await say({
+						mode: "text",
+						text: `alarm not set. specify dd.mm.yyyy on second line and message on third line`
+					});
+					break;
+				}
+				const [dateSanitized] = parseDateDMY(date);
+				if (!dateSanitized) {
+					await say({
+						mode: "text",
+						text: `alarm not set. date is not in dd.mm.yyyy format`
+					});
+					break;
+				}
+
+				const db = dbConnector();
+				await db
+					.insertInto("reminders")
+					.values({
+						chat: message.origin.chat,
+						at: dateSanitized,
+						message: name
+					})
+					.execute();
+				await say({
+					mode: "text",
+					text: `alarm "${name}" set`
+				});
+				break;
+			}
+			case ("listreminders"): {
+				const db = dbConnector();
+				const reminders = await db
+					.selectFrom("reminders")
+					.selectAll()
+					.where("chat", "=", message.origin.chat)
+					.execute();
+
+				const sorted = reminders
+					.map(
+						({ id, at, message }) => {
+							const [timeCaption, date] = parseDateDMY(at);
+							return {
+								id, message,
+								at: date!.getTime(),
+								date: timeCaption
+							};
+						}
+					)
+					.sort((a, b) => a.at - b.at);
+
+				await say({
+					mode: "text",
+					text: sorted.map(({ id, message, date }) => `#${id} at ${date}: ${message}`).join("\n")
+				});
+				break;
+			}
+			case ("unremind"): {
+				const [id] = messageText.split("\n").slice(1);
+				if (!id) break;
+
+				const db = dbConnector()
+				await db
+					.deleteFrom("reminders")
+					.where("id", "=", parseInt(id.trim()))
+					.where("chat", "=", message.origin.chat)
+					.execute();
+					
+				await say({
+					mode: "text",
+					text: `#${id} unreminded`
+				});
+				break;
+			}
 			default: {
 				if (!msgOriginal) break;
 
@@ -305,7 +381,7 @@ async function rinModel(message: RinMessage, say: SayFunction, storage: Storage,
 				const chain = recoverConversationChain(conversations, message.origin.id);
 				if (chain.some(([, text]) => !text)) break;
 
-				const response = await ask(geminiKey, chain, aiPrefs.systemPrompt, aiPrefs.models)
+				const response = await ask(aiKey, chain, aiPrefs.systemPrompt, aiPrefs.models)
 				const tgResponse = await say({
 					mode: "text",
 					text: response.success ? response.answer : `E${response.code}: ${response.message}`,

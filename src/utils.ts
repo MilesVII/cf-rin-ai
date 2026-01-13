@@ -136,3 +136,27 @@ export function recoverConversationChain(conversations: AIConversations, lastId:
 	messages.reverse();
 	return messages;
 }
+
+export function parseDateDMY(raw: string): [string, Date] | [null, null] {
+	const [d, m, y] = raw.split(".").map(v => v.trim());
+	const dp = parseInt(d);
+	const mp = parseInt(m);
+	const yp = parseInt(y);
+	if (isNaN(dp) || isNaN(mp)) {
+		return [null, null];
+	}
+	const date = new Date(
+		isNaN(yp) ? new Date().getFullYear() : yp,
+		mp - 1,
+		dp
+	);
+	// @ts-ignore
+	if (isNaN(date)) {
+		return [null, null];
+	}
+
+	return [
+		`${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`,
+		date
+	];
+}
