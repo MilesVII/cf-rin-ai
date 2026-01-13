@@ -1,4 +1,5 @@
 import { ask } from "./or";
+import * as reminders from "./reminders";
 import { Rinputs } from "./types";
 import { tg, pickRandom, sleep, escapeMarkdown, popRandom, tgFD, recoverConversationChain, parseDateDMY } from "./utils";
 import seedrandom from "seedrandom";
@@ -284,7 +285,9 @@ async function rinModel(say: SayFunction, { message, storage, aiKey, drawAi, dbC
 				break;
 			}
 			case ("remindme"): {
-				const [date, name] = messageText.split("\n").slice(1);
+				const [date, ...nameLines] = messageText.split("\n").slice(1);
+				const name = nameLines.join("\n");
+
 				if (!date || !name) {
 					await say({
 						mode: "text",
@@ -300,16 +303,10 @@ async function rinModel(say: SayFunction, { message, storage, aiKey, drawAi, dbC
 					});
 					break;
 				}
-
 				const db = dbConnector();
-				await db
-					.insertInto("reminders")
-					.values({
-						chat: message.origin.chat,
-						at: dateSanitized,
-						message: name
-					})
-					.execute();
+
+				await reminders.add(db, message.origin.chat, dateSanitized, name);
+
 				await say({
 					mode: "text",
 					text: `alarm "${name}" set`
@@ -318,28 +315,11 @@ async function rinModel(say: SayFunction, { message, storage, aiKey, drawAi, dbC
 			}
 			case ("listreminders"): {
 				const db = dbConnector();
-				const reminders = await db
-					.selectFrom("reminders")
-					.selectAll()
-					.where("chat", "=", message.origin.chat)
-					.execute();
-
-				const sorted = reminders
-					.map(
-						({ id, at, message }) => {
-							const [, date] = parseDateDMY(at);
-							return {
-								id, message,
-								at: date!.getTime(),
-								date: date!.toLocaleDateString("ru")
-							};
-						}
-					)
-					.sort((a, b) => a.at - b.at);
+				const list = await reminders.list(db, message.origin.chat);
 
 				await say({
 					mode: "text",
-					text: sorted.map(({ id, message, date }) => `#${id} at ${date}: ${message}`).join("\n")
+					text: list.map(({ id, message, date }) => `#${id} at ${date}: ${message}`).join("\n")
 				});
 				break;
 			}
@@ -348,11 +328,7 @@ async function rinModel(say: SayFunction, { message, storage, aiKey, drawAi, dbC
 				if (!id) break;
 
 				const db = dbConnector()
-				await db
-					.deleteFrom("reminders")
-					.where("id", "=", parseInt(id.trim()))
-					.where("chat", "=", message.origin.chat)
-					.execute();
+				await reminders.remove(db, parseInt(id.trim()), message.origin.chat);
 
 				await say({
 					mode: "text",

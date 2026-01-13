@@ -8,6 +8,7 @@ export function parseTgUpdate(rawText: string, me: string) {
 
 	if (raw?.message) return parseTgMessage(raw, me);
 	if (raw?.inline_query) return parseTgInlineQuery(raw);
+	if (raw?.callback_query) return parseTgCallbackQuery(raw);
 	return null;
 }
 
@@ -33,6 +34,10 @@ function parseTgMessage(raw: any, me: string): RinMessage | null {
 
 function parseTgInlineQuery(raw: any) {
 	return { iq: true, ...raw?.inline_query };
+}
+
+function parseTgCallbackQuery(raw: any) {
+	return { cbq: true, ...raw?.callback_query };
 }
 
 export async function processInlineQuery(id: string, me: string, token: string, config: StorageSchema["config"]["inline"]) {

@@ -155,8 +155,9 @@ export function parseDateDMY(raw: string): [string, Date] | [null, null] {
 		return [null, null];
 	}
 
-	return [
-		`${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`,
-		date
-	];
+	return [ dateToDMY(date), date ];
+}
+
+export function dateToDMY(date: Date) {
+	return `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
 }
