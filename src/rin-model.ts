@@ -327,11 +327,11 @@ async function rinModel(say: SayFunction, { message, storage, aiKey, drawAi, dbC
 				const sorted = reminders
 					.map(
 						({ id, at, message }) => {
-							const [timeCaption, date] = parseDateDMY(at);
+							const [, date] = parseDateDMY(at);
 							return {
 								id, message,
 								at: date!.getTime(),
-								date: timeCaption
+								date: date!.toLocaleDateString("ru")
 							};
 						}
 					)
@@ -353,7 +353,7 @@ async function rinModel(say: SayFunction, { message, storage, aiKey, drawAi, dbC
 					.where("id", "=", parseInt(id.trim()))
 					.where("chat", "=", message.origin.chat)
 					.execute();
-					
+
 				await say({
 					mode: "text",
 					text: `#${id} unreminded`
