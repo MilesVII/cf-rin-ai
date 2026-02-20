@@ -41,10 +41,10 @@ function parseTgCallbackQuery(raw: any) {
 }
 
 export async function processInlineQuery(id: string, me: string, token: string, config: StorageSchema["config"]["inline"]) {
-	function content(cfg: StorageSchema["config"]["inline"][number]) {
+	function content(cfg: StorageSchema["config"]["inline"][number], ix: number) {
 		return {
 			type: "article",
-			id: "blop",
+			id: "blop" + ix,
 			title: cfg.caption,
 			thumbnail_url: cfg.icon,
 			thumbnail_width: 128,
