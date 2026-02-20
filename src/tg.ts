@@ -41,22 +41,24 @@ function parseTgCallbackQuery(raw: any) {
 }
 
 export async function processInlineQuery(id: string, me: string, token: string, config: StorageSchema["config"]["inline"]) {
-	const value = pickRandom(config.lines);
+	function content(cfg: StorageSchema["config"]["inline"][number]) {
+		return {
+			type: "article",
+			id: "blop",
+			title: cfg.caption,
+			thumbnail_url: cfg.icon,
+			thumbnail_width: 128,
+			thumbnail_height: 128,
+			input_message_content: {
+				message_text: pickRandom(cfg.lines)
+			}
+		};
+	}
 	await tg(
 		"answerInlineQuery",
 		{
 			inline_query_id: id,
-			results: [{
-				type: "article",
-				id: "blop",
-				title: config.caption,
-				thumbnail_url: config.icon,
-				thumbnail_width: 128,
-				thumbnail_height: 128,
-				input_message_content: {
-					message_text: value
-				}
-			}],
+			results: config.map(content),
 			cache_time: 30,
 			is_personal: true
 		},

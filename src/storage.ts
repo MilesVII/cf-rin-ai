@@ -34,7 +34,7 @@ type InlineConfig = {
 	icon: string,
 	caption: string,
 	lines: string[]
-}
+};
 
 export type StorageSchema = {
 	fortunes: string[],
@@ -56,7 +56,7 @@ export type StorageSchema = {
 		me: string,
 		potd: POTDGame,
 		protectedCommandFailResponse: SayInputPayload[],
-		inline: InlineConfig,
+		inline: InlineConfig[],
 	},
 	state: {
 		drafted: boolean
