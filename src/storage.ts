@@ -57,6 +57,7 @@ export type StorageSchema = {
 		potd: POTDGame,
 		protectedCommandFailResponse: SayInputPayload[],
 		inline: InlineConfig[],
+		weather: [user: string, location: string][]
 	},
 	state: {
 		drafted: boolean

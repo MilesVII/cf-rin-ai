@@ -14,7 +14,12 @@ const REMINDER_BUTTON_WEEK = "REM-PP-WEEK";
 
 export default {
 	async scheduled(controller, env, ctx) {
-		ctx.waitUntil(weather(env.TG_TOKEN, env.TG_ME));
+		const storageInstance = storage(env.RIN_STATE);
+		const config = await storageInstance.get("config");
+		const promises = config.weather.map(
+			([user, location]) => weather(env.TG_TOKEN, user, location)
+		);
+		ctx.waitUntil(Promise.all(promises));
 		const db = connectDB(env.rin_d1);
 		const reminders = await db
 			.selectFrom("reminders")
