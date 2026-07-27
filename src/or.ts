@@ -36,7 +36,10 @@ export const ask: Ask = async (key, dialog, systemPrompt, models, maxTokens = 32
 			body: JSON.stringify({
 				models: models ?? ["google/gemini-2.0-flash-exp:free"],
 				messages,
-				max_tokens: maxTokens
+				reasoning: {
+					effort: "none"
+				},
+				max_completion_tokens: maxTokens
 			})
 		}
 	);
